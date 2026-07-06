@@ -37,6 +37,8 @@ def main():
     from .gdrive import gdrive
     from .editbooks import editbook
     from .about import about
+    from .pwa import pwa
+    from .community import community
     from .search import search
     from .search_metadata import meta
     from .shelf import shelf
@@ -70,6 +72,8 @@ def main():
     app.register_blueprint(opds)
     app.register_blueprint(jinjia)
     app.register_blueprint(about)
+    app.register_blueprint(pwa)
+    app.register_blueprint(community)
     app.register_blueprint(shelf)
     app.register_blueprint(admi)
     app.register_blueprint(remotelogin)

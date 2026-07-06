@@ -120,6 +120,10 @@
           <label for="edit_shelf_role">{{_('Allow Editing Public Shelves')}}</label>
         </div>
         <div class="form-group">
+          <input type="checkbox" name="config_show_download_activity" id="config_show_download_activity" {% if conf.config_show_download_activity %}checked{% endif %}>
+          <label for="config_show_download_activity">{{_('Show which users downloaded a book (social activity)')}}</label>
+        </div>
+        <div class="form-group">
         <label for="config_default_locale">{{_('Default Language')}}</label>
             <select name="config_default_locale" id="config_default_locale" class="form-control">
                 {%  for translation in translations %}

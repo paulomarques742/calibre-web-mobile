@@ -1,0 +1,63 @@
+{# Mobile bottom navigation + off-canvas drawer. Included from layout.html for
+   authenticated (or anonymous-allowed) users. Hidden on >=768px via mobile.css. #}
+<nav id="cwm-bottom-nav" role="navigation" aria-label="{{_('Primary')}}">
+  <a href="{{ url_for('web.index') }}" class="{% if page == 'root' or page == 'index' %}active{% endif %}" aria-label="{{_('Home')}}">
+    <span class="glyphicon glyphicon-home" aria-hidden="true"></span>
+    <span>{{_('Home')}}</span>
+  </a>
+  <a href="{{ url_for('search.advanced_search') }}" class="{% if page == 'advsearch' or page == 'search' %}active{% endif %}" aria-label="{{_('Search')}}">
+    <span class="glyphicon glyphicon-search" aria-hidden="true"></span>
+    <span>{{_('Search')}}</span>
+  </a>
+  <a href="{% if not current_user.is_anonymous %}{{ url_for('web.books_list', data='recommended', sort_param='stored', book_id=1) }}{% else %}{{ url_for('web.books_list', data='discover', sort_param='stored', book_id=1) }}{% endif %}" class="{% if page == 'discover' or page == 'recommended' %}active{% endif %}" aria-label="{{_('Discover')}}">
+    <span class="glyphicon glyphicon-fire" aria-hidden="true"></span>
+    <span>{{_('Discover')}}</span>
+  </a>
+  <a href="#" id="cwm-drawer-toggle" aria-label="{{_('Browse')}}" aria-controls="cwm-drawer" aria-expanded="false">
+    <span class="glyphicon glyphicon-menu-hamburger" aria-hidden="true"></span>
+    <span>{{_('Browse')}}</span>
+  </a>
+  <a href="{% if not current_user.is_anonymous %}{{ url_for('web.profile') }}{% else %}{{ url_for('web.login') }}{% endif %}" class="{% if page == 'profile' or page == 'me' %}active{% endif %}" aria-label="{{_('Account')}}">
+    <span class="glyphicon glyphicon-user" aria-hidden="true"></span>
+    <span>{{_('Account')}}</span>
+  </a>
+</nav>
+
+<div id="cwm-drawer-backdrop"></div>
+<aside id="cwm-drawer" aria-hidden="true" aria-label="{{_('Browse')}}">
+  <ul class="cwm-drawer-nav">
+    <li class="nav-head">{{_('Browse')}}</li>
+    {% if not current_user.is_anonymous %}
+      <li {% if page == 'recommended' %}class="active"{% endif %}><a href="{{ url_for('web.books_list', data='recommended', sort_param='stored', book_id=1) }}"><span class="glyphicon glyphicon-fire" aria-hidden="true"></span> {{_('Discover for you')}}</a></li>
+    {% endif %}
+    {% for element in sidebar %}
+      {% if current_user.check_visibility(element['visibility']) and element['public'] %}
+        <li id="cwm_nav_{{element['id']}}" {% if page == element['page'] %}class="active"{% endif %}>
+          <a href="{% if element['no_param'] %}{{url_for(element['link'], data=element['page'])}}{% else %}{{url_for(element['link'], data=element['page'], sort_param='stored')}}{% endif %}">
+            <span class="glyphicon {{element['glyph']}}" aria-hidden="true"></span> {{_(element['text'])}}
+          </a>
+        </li>
+      {% endif %}
+    {% endfor %}
+    <li class="nav-head">{{_('Shelves')}}</li>
+    {% for shelf in g.shelves_access %}
+      <li><a href="{{url_for('shelf.show_shelf', shelf_id=shelf.id)}}"><span class="glyphicon glyphicon-list" aria-hidden="true"></span> {{shelf.name|shortentitle(40)}}{% if shelf.is_public == 1 %} {{_('(Public)')}}{% endif %}</a></li>
+    {% endfor %}
+    {% if not current_user.is_anonymous %}
+      <li><a href="{{url_for('shelf.create_shelf')}}"><span class="glyphicon glyphicon-plus" aria-hidden="true"></span> {{_('Create a Shelf')}}</a></li>
+      <li class="nav-head">{{_('More')}}</li>
+      {% if current_user.role_admin() %}
+        <li><a href="{{url_for('admin.admin')}}"><span class="glyphicon glyphicon-dashboard" aria-hidden="true"></span> {{_('Settings')}}</a></li>
+      {% endif %}
+      <li><a href="{{url_for('about.stats')}}"><span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span> {{_('About')}}</a></li>
+      <li><a href="{{url_for('web.logout', next=url_for('web.index'))}}"><span class="glyphicon glyphicon-log-out" aria-hidden="true"></span> {{_('Logout')}}</a></li>
+    {% endif %}
+  </ul>
+</aside>
+
+<div id="cwm-install-chip">
+  <span class="glyphicon glyphicon-download-alt" aria-hidden="true"></span>
+  <span>{{_('Install this app on your device')}}</span>
+  <button type="button" id="cwm-install-accept">{{_('Install')}}</button>
+  <button type="button" class="cwm-install-dismiss" aria-label="{{_('Dismiss')}}">&times;</button>
+</div>

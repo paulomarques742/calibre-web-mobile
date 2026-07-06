@@ -699,10 +699,14 @@ class CalibreDB:
                                        isolation_level="SERIALIZABLE",
                                        connect_args={'check_same_thread': False},
                                        poolclass=StaticPool)
+            fts_db_path = os.path.join(os.path.dirname(app_db_path), "fulltext.db")
             with engine.begin() as connection:
                 connection.execute(text('PRAGMA cache_size = 10000;'))
                 connection.execute(text("attach database '{}' as calibre;".format(dbpath.replace("'", "''"))))
                 connection.execute(text("attach database '{}' as app_settings;".format(app_db_path.replace("'", "''"))))
+                # calibre-web-mobile: full-text search index (own file, created on
+                # demand). Missing/empty index -> search_query falls back to LIKE.
+                connection.execute(text("attach database '{}' as fts;".format(fts_db_path.replace("'", "''"))))
 
             conn = engine.connect()
             # conn.text_factory = lambda b: b.decode(errors = 'ignore') possible fix for #1302
@@ -968,35 +972,29 @@ class CalibreDB:
             .filter(and_(Books.authors.any(and_(*q)), func.lower(Books.title).ilike("%" + title + "%"))).first()
 
     def search_query(self, term, config, *join):
+        from . import fts  # local import avoids a circular import at package init
         term = strip_whitespaces(term).lower()
         self.create_functions()
 
-        # Try FTS5 search first for better performance
+        # Try the FTS5 index first (attached as schema `fts`, see setup_db). The
+        # index may be missing/empty/out-of-date; any failure or an empty result
+        # transparently falls through to the LIKE-based search below.
         fts_ids = None
-        # Check if FTS5 table exists before attempting search
-        if not hasattr(self, '_fts_available'):
+        match_query = fts.build_match_query(term)
+        if match_query:
             try:
-                result = self.session.execute(
-                    text("SELECT name FROM sqlite_master WHERE type='table' AND name='books_fts'")
-                ).fetchone()
-                self._fts_available = result is not None
-            except Exception:
-                self._fts_available = False
-
-        if self._fts_available:
-            try:
-                # Escape FTS5 special characters to prevent query errors
-                term_fts = term.replace('"', '""')
-                # Wrap in quotes for phrase matching and better accuracy
+                # bm25 weights follow the fts column order: title highest, then
+                # authors/series/tags, description lowest, publisher/identifiers.
                 fts_results = self.session.execute(
-                    text("SELECT DISTINCT rowid FROM books_fts WHERE books_fts MATCH :term"),
-                    {"term": f'"{term_fts}"'}
+                    text("SELECT rowid FROM fts.books_fts WHERE books_fts MATCH :q "
+                         "ORDER BY bm25(fts.books_fts, 10.0, 8.0, 7.0, 6.0, 1.0, 3.0, 3.0) LIMIT 1000"),
+                    {"q": match_query}
                 ).fetchall()
                 if fts_results:
                     fts_ids = [r[0] for r in fts_results]
             except Exception as ex:
-                # FTS5 query failed, fall back to traditional search
-                log.debug("FTS5 search failed for term '{}', using fallback: {}".format(term, ex))
+                # FTS index unavailable or query error -> traditional search.
+                log.debug("FTS5 search unavailable for term '{}', using fallback: {}".format(term, ex))
 
         # Build base query with optimized joins
         base_query = self.generate_linked_query(config.config_read_column, Books)

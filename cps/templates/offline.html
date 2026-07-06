@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>{{ instance or 'Calibre-Web' }} &mdash; {{_('Offline')}}</title>
+  <link href="{{ url_for('static', filename='css/libs/bootstrap.min.css') }}" rel="stylesheet">
+  <style>
+    body { display:flex; min-height:100vh; align-items:center; justify-content:center;
+           text-align:center; padding:24px; color:#2c3e50; background:#f7f7f7; }
+    .cwm-offline .glyphicon { font-size:56px; color:#45b29d; margin-bottom:16px; }
+    .cwm-offline h1 { font-size:22px; margin-bottom:8px; }
+    .cwm-offline p { color:#8a8a8a; }
+    .cwm-offline button { margin-top:20px; }
+  </style>
+</head>
+<body>
+  <div class="cwm-offline">
+    <span class="glyphicon glyphicon-cloud-download" aria-hidden="true"></span>
+    <h1>{{_('You are offline')}}</h1>
+    <p>{{_('This page needs a connection. Reconnect and try again.')}}</p>
+    <button class="btn btn-primary" onclick="location.reload()">{{_('Retry')}}</button>
+  </div>
+</body>
+</html>

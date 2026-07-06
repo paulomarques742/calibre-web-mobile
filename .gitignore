@@ -35,3 +35,8 @@ gdrive_credentials
 client_secrets.json
 gmail.json
 /.key
+
+# calibre-web-mobile local dev/test artifacts
+.venv-local/
+.venv-test/
+local-test-data/

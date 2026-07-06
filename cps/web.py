@@ -32,7 +32,7 @@ from flask_babel import get_locale
 from .cw_login import login_user, logout_user, current_user
 from flask_limiter.util import get_remote_address
 from sqlalchemy.exc import IntegrityError, InvalidRequestError, OperationalError
-from sqlalchemy.sql.expression import text, func, false, not_, and_, or_
+from sqlalchemy.sql.expression import text, func, false, not_, and_, or_, case
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.sql.functions import coalesce
 from werkzeug.datastructures import Headers
@@ -378,6 +378,8 @@ def render_books_list(data, sort_param, book_id, page):
         return render_rated_books(page, book_id, order=order)
     elif data == "discover":
         return render_discover_books(book_id)
+    elif data == "recommended":
+        return render_recommended_books(page, order)
     elif data == "unread":
         return render_read_books(page, False, order=order)
     elif data == "read":
@@ -417,7 +419,17 @@ def render_books_list(data, sort_param, book_id, page):
                                                                 db.books_series_link,
                                                                 db.Books.id == db.books_series_link.c.book,
                                                                 db.Series)
+        # "Discover for you" strip on the home page for logged-in users.
+        discover_entries = []
+        if website == "newest" and page == 1 and current_user.is_authenticated and not current_user.is_anonymous:
+            try:
+                from . import recommendations
+                rec_ids = recommendations.get_recommended_ids(current_user.id, limit=12)
+                discover_entries, _r, _p = _recommended_entries(rec_ids, 1, 12)
+            except Exception as ex:
+                log.debug("discover strip failed: %s", ex)
         return render_title_template('index.html', random=random, entries=entries, pagination=pagination,
+                                     discover_entries=discover_entries,
                                      title=_("Books"), page=website, order=order[1])
 
 
@@ -448,6 +460,29 @@ def render_discover_books(book_id):
                                      title=_("Discover (Random Books)"), page="discover")
     else:
         abort(404)
+
+
+def _recommended_entries(ids, page, pagesize):
+    # Reuse fill_indexpage so entries carry the same read/archive shape the
+    # index template expects, and order by recommendation rank.
+    if not ids:
+        return [], false(), Pagination(page, pagesize or config.config_books_per_page, 0)
+    rank = case(*[(db.Books.id == bid, i) for i, bid in enumerate(ids)], else_=len(ids))
+    return calibre_db.fill_indexpage(page, pagesize, db.Books, db.Books.id.in_(ids), [rank],
+                                     True, config.config_read_column,
+                                     db.books_series_link,
+                                     db.Books.id == db.books_series_link.c.book,
+                                     db.Series)
+
+
+def render_recommended_books(page, order):
+    if not current_user.is_authenticated or current_user.is_anonymous:
+        abort(404)
+    from . import recommendations
+    ids = recommendations.get_recommended_ids(current_user.id, limit=60)
+    entries, random, pagination = _recommended_entries(ids, page, 0)
+    return render_title_template('index.html', random=false(), entries=entries, pagination=pagination,
+                                 title=_("Discover for you"), page="recommended")
 
 
 def render_hot_books(page, order):
@@ -814,8 +849,8 @@ def books_list(data, sort_param, book_id, page):
     return render_books_list(data, sort_param, book_id, page)
 
 # Limit number of routes to avoid redirects
-data =["rated", "discover", "unread", "read", "hot", "download", "author", "publisher", "series", "ratings", "formats",
-       "category", "language", "archived", "search", "advsearch", "newest"]
+data =["rated", "discover", "recommended", "unread", "read", "hot", "download", "author", "publisher", "series",
+       "ratings", "formats", "category", "language", "archived", "search", "advsearch", "newest"]
 for d in data:
     web.add_url_rule('/{}/<sort_param>'.format(d), view_func=books_list, defaults={'page': 1, 'book_id': 1, "data": d})
     web.add_url_rule('/{}/<sort_param>/'.format(d), view_func=books_list, defaults={'page': 1, 'book_id': 1, "data": d})
@@ -1480,6 +1515,7 @@ def change_profile(kobo_support, local_oauth_check, oauth_status, translations, 
                 # Query username, if not existing, change
                 current_user.name = check_username(to_save.get("name"))
         current_user.random_books = 1 if to_save.get("show_random") == "on" else 0
+        current_user.privacy_hide_activity = to_save.get("privacy_hide_activity") == "on"
         current_user.default_language = to_save.get("default_language", "all")
         current_user.locale = to_save.get("locale", "en")
         old_state = current_user.kobo_only_shelves_sync
@@ -1651,12 +1687,16 @@ def show_book(book_id):
             if media_format.format.lower() in constants.EXTENSIONS_AUDIO:
                 entry.audio_entries.append(media_format.format.lower())
 
+        from .community import get_community_block
+        community_block = get_community_block(book_id)
+
         return render_title_template('detail.html',
                                      entry=entry,
                                      cc=cc,
                                      is_xhr=request.headers.get('X-Requested-With') == 'XMLHttpRequest',
                                      title=entry.title,
                                      books_shelfs=book_in_shelves,
+                                     community=community_block,
                                      page="book")
     else:
         log.debug("Selected book is unavailable. File does not exist or is not accessible")

@@ -177,6 +177,10 @@ BookMeta = namedtuple('BookMeta', 'file_path, extension, title, author, cover, d
 # python build process likes to have x.y.zbw -> b for beta and w a counting number
 STABLE_VERSION =  '0.6.27b'
 
+# calibre-web-mobile fork build tag. Bump on any change to static assets or the
+# service worker so old PWA caches are invalidated (cache name embeds this).
+CWM_VERSION = '1'
+
 NIGHTLY_VERSION = dict()
 NIGHTLY_VERSION[0] = '$Format:%H$'
 NIGHTLY_VERSION[1] = '$Format:%cI$'

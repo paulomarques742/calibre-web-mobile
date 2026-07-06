@@ -41,8 +41,8 @@ except ImportError as e:
         OAuthConsumerMixin = BaseException
         oauth_support = False
 from sqlalchemy import create_engine, exc, exists, event, text
-from sqlalchemy import Column, ForeignKey
-from sqlalchemy import String, Integer, SmallInteger, Boolean, DateTime, Float, JSON
+from sqlalchemy import Column, ForeignKey, UniqueConstraint
+from sqlalchemy import String, Text, Integer, SmallInteger, Boolean, DateTime, Float, JSON
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.sql.expression import func
 try:
@@ -257,6 +257,9 @@ class User(UserBase, Base):
     remote_auth_token = relationship('RemoteAuthToken', backref='user', lazy='dynamic')
     view_settings = Column(JSON, default={})
     kobo_only_shelves_sync = Column(Integer, default=0)
+    # calibre-web-mobile: opt out of showing this user's activity (e.g. which
+    # books they downloaded) to other users. Admins always see full activity.
+    privacy_hide_activity = Column(Boolean, default=False)
 
 
 if oauth_support:
@@ -513,6 +516,69 @@ class Downloads(Base):
         return '<Download %r' % self.book_id
 
 
+# calibre-web-mobile: per-user star rating (1-5) for a calibre book. Distinct
+# from calibre's single global rating in metadata.db, which is left untouched.
+class BookRating(Base):
+    __tablename__ = 'book_rating'
+    __table_args__ = (UniqueConstraint('book_id', 'user_id', name='_book_user_rating_uc'),)
+
+    id = Column(Integer, primary_key=True)
+    book_id = Column(Integer, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
+    rating = Column(SmallInteger, nullable=False)  # 1..5
+    last_modified = Column(DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
+
+    def __repr__(self):
+        return '<BookRating book={} user={} rating={}>'.format(self.book_id, self.user_id, self.rating)
+
+
+# calibre-web-mobile: per-user free-text review of a book (one editable review
+# per user/book). Text is bleach-sanitized before storage.
+class BookReview(Base):
+    __tablename__ = 'book_review'
+    __table_args__ = (UniqueConstraint('book_id', 'user_id', name='_book_user_review_uc'),)
+
+    id = Column(Integer, primary_key=True)
+    book_id = Column(Integer, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
+    text = Column(Text, nullable=False)
+    created = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    last_modified = Column(DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
+
+    def __repr__(self):
+        return '<BookReview book={} user={}>'.format(self.book_id, self.user_id)
+
+
+# calibre-web-mobile: per-user "like" on a book.
+class BookLike(Base):
+    __tablename__ = 'book_like'
+    __table_args__ = (UniqueConstraint('book_id', 'user_id', name='_book_user_like_uc'),)
+
+    id = Column(Integer, primary_key=True)
+    book_id = Column(Integer, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
+    created = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def __repr__(self):
+        return '<BookLike book={} user={}>'.format(self.book_id, self.user_id)
+
+
+# calibre-web-mobile: per-user "like" on another user's review.
+class ReviewLike(Base):
+    __tablename__ = 'review_like'
+    __table_args__ = (UniqueConstraint('review_id', 'user_id', name='_review_user_like_uc'),)
+
+    id = Column(Integer, primary_key=True)
+    review_id = Column(Integer, ForeignKey('book_review.id', ondelete='CASCADE'), nullable=False)
+    user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
+    created = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def __repr__(self):
+        return '<ReviewLike review={} user={}>'.format(self.review_id, self.user_id)
+
+
 # Baseclass representing allowed domains for registration
 class Registration(Base):
     __tablename__ = 'registration'
@@ -604,11 +670,23 @@ def migrate_user_session_table(engine, _session):
 # Migrate database to current version, has to be updated after every database change. Currently, migration from
 # maybe 4/5 versions back to current should work.
 # Migration is done by checking if relevant columns are existing, and then adding rows with SQL commands
+def migrate_user_privacy_column(engine, _session):
+    try:
+        _session.query(exists().where(User.privacy_hide_activity)).scalar()
+        _session.commit()
+    except exc.OperationalError:  # Column is missing on an older app.db
+        with engine.connect() as conn:
+            trans = conn.begin()
+            conn.execute(text("ALTER TABLE user ADD column 'privacy_hide_activity' Boolean DEFAULT 0"))
+            trans.commit()
+
+
 def migrate_Database(_session):
     engine = _session.bind
     add_missing_tables(engine, _session)
     migrate_registration_table(engine, _session)
     migrate_user_session_table(engine, _session)
+    migrate_user_privacy_column(engine, _session)
 
 
 def clean_database(_session):
@@ -640,6 +718,21 @@ def update_download(book_id, user_id):
 def delete_download(book_id):
     session.query(Downloads).filter(book_id == Downloads.book_id).delete()
     try:
+        session.commit()
+    except exc.OperationalError:
+        session.rollback()
+
+
+# calibre-web-mobile: purge all social rows for a book when it is removed from
+# the library. Called from the book-delete flow alongside delete_download.
+def delete_book_social(book_id):
+    try:
+        review_ids = [r.id for r in session.query(BookReview.id).filter(BookReview.book_id == book_id).all()]
+        if review_ids:
+            session.query(ReviewLike).filter(ReviewLike.review_id.in_(review_ids)).delete(synchronize_session=False)
+        session.query(BookReview).filter(BookReview.book_id == book_id).delete()
+        session.query(BookRating).filter(BookRating.book_id == book_id).delete()
+        session.query(BookLike).filter(BookLike.book_id == book_id).delete()
         session.commit()
     except exc.OperationalError:
         session.rollback()

@@ -17,7 +17,7 @@
 import json
 from datetime import datetime
 
-from flask import Blueprint, request, redirect, url_for, flash
+from flask import Blueprint, request, redirect, url_for, flash, jsonify
 from flask import session as flask_session
 from .cw_login import current_user
 from flask_babel import format_date
@@ -49,6 +49,43 @@ def simple_search():
                                      result_count=0,
                                      title=_("Search"),
                                      page="search")
+
+
+@search.route("/ajax/searchsuggest", methods=["GET"])
+@login_required_if_no_ano
+def search_suggest():
+    # As-you-type suggestions backed by the FTS index (falls back to empty on
+    # any error). Respects the same visibility filters as normal browsing.
+    term = strip_whitespaces(request.args.get("q", "") or "")
+    if len(term) < 2:
+        return jsonify([])
+    from . import fts
+    match_query = fts.build_match_query(term.lower())
+    suggestions = []
+    if match_query:
+        try:
+            rows = calibre_db.session.execute(
+                text("SELECT rowid FROM fts.books_fts WHERE books_fts MATCH :q "
+                     "ORDER BY bm25(fts.books_fts, 10.0, 8.0, 7.0, 6.0, 1.0, 3.0, 3.0) LIMIT 8"),
+                {"q": match_query}
+            ).fetchall()
+            ids = [r[0] for r in rows]
+            if ids:
+                books = calibre_db.session.query(db.Books).filter(db.Books.id.in_(ids)) \
+                    .filter(calibre_db.common_filters(True)).all()
+                order = {bid: i for i, bid in enumerate(ids)}
+                books.sort(key=lambda b: order.get(b.id, 999))
+                for b in books:
+                    suggestions.append({
+                        "id": b.id,
+                        "title": b.title,
+                        "authors": " & ".join(a.name.replace("|", ",") for a in b.authors),
+                        "url": url_for("web.show_book", book_id=b.id),
+                        "cover": url_for("web.get_cover", book_id=b.id, resolution="sm", c=b.last_modified),
+                    })
+        except Exception as ex:
+            log.debug("search suggest failed: %s", ex)
+    return jsonify(suggestions)
 
 
 @search.route("/advsearch", methods=['POST'])
