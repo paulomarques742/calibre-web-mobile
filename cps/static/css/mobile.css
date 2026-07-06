@@ -1,0 +1,414 @@
+/* mobile.css - Mobile-first "app-like" layer for calibre-web-mobile.
+ *
+ * Layered on top of Bootstrap 3 + style.css/caliBlur.css. Everything here is
+ * scoped to small viewports so desktop rendering is unchanged. Works in both
+ * the default theme and the caliBlur theme (body.blur). Do NOT restructure
+ * markup for these rules - caliBlur.js relies on the existing DOM.
+ */
+
+:root {
+  --cwm-nav-height: 56px;
+  --cwm-accent: #45b29d;
+  --cwm-bg: #ffffff;
+  --cwm-bg-elevated: #ffffff;
+  --cwm-border: rgba(0, 0, 0, 0.08);
+  --cwm-text: #2c3e50;
+  --cwm-text-muted: #8a8a8a;
+  --cwm-shadow: 0 -1px 12px rgba(0, 0, 0, 0.12);
+}
+
+body.blur {
+  --cwm-bg: #1f2124;
+  --cwm-bg-elevated: #2a2c30;
+  --cwm-border: rgba(255, 255, 255, 0.08);
+  --cwm-text: #dcdcdc;
+  --cwm-text-muted: #9a9a9a;
+  --cwm-shadow: 0 -1px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* ============================================================
+ * Bottom navigation (mobile only)
+ * ============================================================ */
+#cwm-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  #cwm-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(var(--cwm-nav-height) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--cwm-bg-elevated);
+    border-top: 1px solid var(--cwm-border);
+    box-shadow: var(--cwm-shadow);
+    z-index: 1030;
+  }
+
+  #cwm-bottom-nav a {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 6px 0;
+    color: var(--cwm-text-muted);
+    text-decoration: none;
+    font-size: 10px;
+    line-height: 1;
+    min-height: 44px;
+  }
+
+  #cwm-bottom-nav a .glyphicon {
+    font-size: 20px;
+    top: 0;
+  }
+
+  #cwm-bottom-nav a.active,
+  #cwm-bottom-nav a:active {
+    color: var(--cwm-accent);
+  }
+
+  /* Room for the fixed bar so content is never hidden behind it. */
+  body {
+    padding-bottom: calc(var(--cwm-nav-height) + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* ==========================================================
+   * Top navbar: slimmer, search-forward
+   * ========================================================== */
+  .navbar-static-top .navbar-form.navbar-left {
+    float: none;
+    margin: 4px 8px;
+    padding: 0;
+  }
+
+  .navbar-static-top .navbar-form .form-control {
+    /* 16px prevents iOS zoom-on-focus */
+    font-size: 16px;
+    height: 38px;
+  }
+
+  /* The desktop sidebar is reachable via the drawer; hide the inline column. */
+  .col-sm-2 nav.navigation {
+    display: none;
+  }
+
+  /* ==========================================================
+   * Book grid -> responsive CSS grid, overriding BS3 floats
+   * ========================================================== */
+  .discover .row.display-flex {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(30vw, 1fr));
+    gap: 14px 10px;
+    margin: 0;
+  }
+
+  .discover .row.display-flex .book {
+    width: auto !important;
+    float: none !important;
+    padding: 0;
+    margin: 0;
+  }
+
+  .discover .book .cover {
+    margin-bottom: 6px;
+  }
+
+  .discover .book .cover img {
+    border-radius: 6px;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18);
+  }
+
+  .discover .book .meta .title {
+    font-size: 13px;
+    line-height: 1.25;
+  }
+
+  .discover .book .meta .author {
+    font-size: 11px;
+  }
+
+  /* Horizontal "shelf" strip (Discover for you, etc.) */
+  .cwm-strip .row.display-flex {
+    display: flex !important;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    gap: 12px;
+    padding-bottom: 8px;
+  }
+
+  .cwm-strip .row.display-flex .book {
+    flex: 0 0 40vw;
+    scroll-snap-align: start;
+  }
+
+  /* ==========================================================
+   * Book detail page: full-width touch targets
+   * ========================================================== */
+  .book-meta .btn,
+  #books-details .btn,
+  .btn-toolbar .btn-group,
+  .btn-toolbar .btn-group .btn {
+    min-height: 44px;
+  }
+
+  .book-meta .btn-group,
+  .book-meta .btn-group-vertical {
+    width: 100%;
+  }
+
+  #btn-group-download,
+  #read-in-browser {
+    width: 100%;
+  }
+
+  /* Larger form controls across the app on touch screens */
+  input.form-control,
+  select.form-control,
+  textarea.form-control {
+    font-size: 16px;
+  }
+}
+
+/* ============================================================
+ * Off-canvas navigation drawer (mobile only)
+ * ============================================================ */
+#cwm-drawer-backdrop {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  #cwm-drawer {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 82vw;
+    max-width: 320px;
+    background: var(--cwm-bg-elevated);
+    border-right: 1px solid var(--cwm-border);
+    box-shadow: 2px 0 16px rgba(0, 0, 0, 0.3);
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    z-index: 1050;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 12px 0 calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+
+  #cwm-drawer.open {
+    transform: translateX(0);
+  }
+
+  #cwm-drawer-backdrop.open {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 1040;
+  }
+
+  #cwm-drawer .cwm-drawer-nav {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  #cwm-drawer .cwm-drawer-nav li > a {
+    display: block;
+    padding: 12px 20px;
+    color: var(--cwm-text);
+    text-decoration: none;
+    font-size: 15px;
+  }
+
+  #cwm-drawer .cwm-drawer-nav li.active > a,
+  #cwm-drawer .cwm-drawer-nav li > a:active {
+    color: var(--cwm-accent);
+    background: rgba(69, 178, 157, 0.08);
+  }
+
+  #cwm-drawer .cwm-drawer-nav .nav-head {
+    padding: 14px 20px 6px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--cwm-text-muted);
+  }
+
+  #cwm-drawer .glyphicon {
+    margin-right: 10px;
+    width: 18px;
+    text-align: center;
+  }
+}
+
+/* ============================================================
+ * PWA install chip (populated by mobile.js when installable)
+ * ============================================================ */
+#cwm-install-chip {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  #cwm-install-chip.show {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(var(--cwm-nav-height) + env(safe-area-inset-bottom, 0px) + 12px);
+    background: var(--cwm-accent);
+    color: #fff;
+    padding: 12px 16px;
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    z-index: 1035;
+    font-size: 14px;
+  }
+
+  #cwm-install-chip button {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: #fff;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  #cwm-install-chip .cwm-install-dismiss {
+    background: transparent;
+    margin-left: auto;
+    padding: 6px 8px;
+  }
+}
+
+/* When launched as an installed PWA (standalone), hide redundant chrome. */
+@media (display-mode: standalone) {
+  #cwm-install-chip {
+    display: none !important;
+  }
+}
+
+/* ============================================================
+ * Community block (book detail) - both themes, all viewports
+ * ============================================================ */
+.cwm-community {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--cwm-border);
+}
+
+.cwm-community h3 {
+  margin-bottom: 12px;
+}
+
+.cwm-social-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.cwm-community .cwm-label {
+  color: var(--cwm-text-muted);
+  margin-right: 6px;
+  font-size: 13px;
+}
+
+.cwm-community .cwm-stars .cwm-star {
+  cursor: pointer;
+  color: #f0ad4e;
+  font-size: 18px;
+  margin-right: 2px;
+}
+
+.cwm-community .cwm-star.glyphicon-star-empty { color: #bbb; }
+
+.cwm-community .cwm-avg { font-weight: 600; }
+
+.cwm-like-btn,
+.cwm-review-like {
+  background: transparent;
+  border: 1px solid var(--cwm-border);
+  color: var(--cwm-text-muted);
+}
+
+.cwm-like-btn.active .glyphicon-heart,
+.cwm-review-like.active .glyphicon-heart { color: #e0245e; }
+
+.cwm-review-form { margin-bottom: 18px; }
+.cwm-review-form textarea { margin-bottom: 8px; font-size: 15px; }
+
+.cwm-review {
+  padding: 12px 0;
+  border-top: 1px solid var(--cwm-border);
+}
+
+.cwm-review-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.cwm-review-rating { color: #f0ad4e; font-size: 13px; }
+.cwm-review-body { color: var(--cwm-text); }
+.cwm-review-delete { color: #c0392b; }
+
+/* ============================================================
+ * Search suggestions dropdown
+ * ============================================================ */
+.cwm-suggest {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1055;
+  background: var(--cwm-bg-elevated);
+  border: 1px solid var(--cwm-border);
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  max-height: 60vh;
+  overflow-y: auto;
+  min-width: 260px;
+}
+
+.cwm-suggest-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  text-decoration: none;
+  color: var(--cwm-text);
+  border-bottom: 1px solid var(--cwm-border);
+}
+
+.cwm-suggest-item:hover,
+.cwm-suggest-item:active { background: rgba(69, 178, 157, 0.10); }
+
+.cwm-suggest-item img {
+  width: 32px;
+  height: 46px;
+  object-fit: cover;
+  border-radius: 3px;
+  flex-shrink: 0;
+  background: rgba(127, 127, 127, 0.15);
+}
+
+.cwm-suggest-text { display: flex; flex-direction: column; min-width: 0; }
+.cwm-suggest-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cwm-suggest-author { font-size: 11px; color: var(--cwm-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

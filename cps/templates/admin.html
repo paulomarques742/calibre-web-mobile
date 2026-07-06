@@ -190,8 +190,13 @@
             <div class="col-xs-6 col-sm-3">{{_('Generate Metadata Backup Files')}}</div>
             <div class="col-xs-6 col-sm-3">{{ display_bool_setting(config.schedule_metadata_backup) }}</div>
           </div>
+          <div class="row">
+            <div class="col-xs-6 col-sm-3">{{_('Rebuild Search Index')}}</div>
+            <div class="col-xs-6 col-sm-3">{{ display_bool_setting(config.schedule_rebuild_fts) }}</div>
+          </div>
 
         </div>
+        <a class="btn btn-default" id="rebuild_fts" href="#" data-toggle="tooltip" title="{{_('Rebuild the full-text search index now')}}">{{_('Rebuild Search Index')}}</a>
       <a class="btn btn-default scheduledtasks" id="admin_edit_scheduled_tasks" href="{{url_for('admin.edit_scheduledtasks')}}">{{_('Edit Scheduled Tasks Settings')}}</a>
       {% if config.schedule_generate_book_covers %}
         <a class="btn btn-default" id="admin_refresh_cover_cache">{{_('Refresh Thumbnail Cache')}}</a>

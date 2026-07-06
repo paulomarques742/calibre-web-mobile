@@ -199,6 +199,17 @@ def update_thumbnails():
     return ""
 
 
+@admi.route("/ajax/rebuildFTS", methods=['POST'])
+@user_login_required
+@admin_required
+def rebuild_fts():
+    from .tasks.fts_index import TaskRebuildFTS
+    from .services.worker import WorkerThread
+    log.info("Search index rebuild requested")
+    WorkerThread.add(current_user.name, TaskRebuildFTS())
+    return ""
+
+
 @admi.route("/admin/view")
 @user_login_required
 @admin_required
@@ -1794,6 +1805,7 @@ def _configuration_update_helper():
         _config_checkbox_int(to_save, "config_uploading")
         _config_checkbox_int(to_save, "config_unicode_filename")
         _config_checkbox_int(to_save, "config_embed_metadata")
+        _config_checkbox(to_save, "config_show_download_activity")
         # Reboot on config_anonbrowse with enabled ldap, as decoraters are changed in this case
         reboot_required |= (_config_checkbox_int(to_save, "config_anonbrowse")
                             and config.config_login_type == constants.LOGIN_LDAP)

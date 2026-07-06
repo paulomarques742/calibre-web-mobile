@@ -25,6 +25,7 @@ from .tasks.clean import TaskClean
 from .tasks.thumbnail import TaskGenerateCoverThumbnails, TaskGenerateSeriesThumbnails, TaskClearCoverThumbnailCache
 from .services.worker import WorkerThread
 from .tasks.metadata_backup import TaskBackupMetadata
+from .tasks.fts_index import TaskRebuildFTS
 
 def get_scheduled_tasks(reconnect=True):
     tasks = list()
@@ -47,6 +48,10 @@ def get_scheduled_tasks(reconnect=True):
     # Generate all missing series thumbnails
     if config.schedule_generate_series_covers:
         tasks.append([lambda: TaskGenerateSeriesThumbnails(), 'generate book covers', False])
+
+    # Rebuild the full-text search index (calibre-web-mobile)
+    if getattr(config, 'schedule_rebuild_fts', True):
+        tasks.append([lambda: TaskRebuildFTS(), 'rebuild search index', False])
 
     return tasks
 
@@ -94,7 +99,17 @@ def register_startup_tasks():
         if constants.APP_MODE in ['development', 'test'] and not should_task_be_running(start, duration):
             scheduler.schedule_tasks_immediately(tasks=get_scheduled_tasks(False))
         else:
-            scheduler.schedule_tasks_immediately(tasks=[[lambda: TaskClean(), 'delete temp', True]])
+            startup_tasks = [[lambda: TaskClean(), 'delete temp', True]]
+            # Build the FTS index at startup if it is missing or out of date
+            # (e.g. first boot after upgrading to this fork, or library changed
+            # while the app was down). No-op when the index is already current.
+            try:
+                from . import fts
+                if fts.is_stale():
+                    startup_tasks.append([lambda: TaskRebuildFTS(), 'rebuild search index', False])
+            except Exception:
+                pass
+            scheduler.schedule_tasks_immediately(tasks=startup_tasks)
 
 
 def should_task_be_running(start, duration):

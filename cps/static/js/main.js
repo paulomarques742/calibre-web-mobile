@@ -505,6 +505,15 @@ $(function() {
         });
     });
 
+    $("#rebuild_fts").click(function(e) {
+        e.preventDefault();
+        $.ajax({
+            method: "post",
+            contentType: "application/json; charset=utf-8",
+            url: getPath() + "/ajax/rebuildFTS",
+        });
+    });
+
     $("#restart_database").click(function() {
         $("#DialogHeader").addClass("hidden");
         $("#DialogFinished").addClass("hidden");

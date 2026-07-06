@@ -5,14 +5,20 @@
   <head>
     <title>{{instance}} | {{title}}</title>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="{% if g.current_theme == 1 %}#1f2124{% else %}#45b29d{% endif %}">
     {% if g.google_site_verification|length > 0 %}
       <meta name="google-site-verification" content="{{g.google_site_verification}}">
     {% endif %}
+    <!-- PWA -->
+    <link rel="manifest" href="{{ url_for('pwa.manifest') }}">
     <!-- Bootstrap -->
-    <link rel="apple-touch-icon" sizes="140x140" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icons/icon-192.png') }}">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link href="{{ url_for('static', filename='css/libs/bootstrap.min.css') }}" rel="stylesheet" media="screen">
     {% block header %}{% endblock %}
@@ -22,6 +28,7 @@
        <link href="{{ url_for('static', filename='css/caliBlur.css') }}" rel="stylesheet" media="screen">
        <link href="{{ url_for('static', filename='css/caliBlur_override.css') }}" rel="stylesheet" media="screen">
     {% endif %}
+    <link href="{{ url_for('static', filename='css/mobile.css') }}" rel="stylesheet" media="screen">
   </head>
   <body class="{{ page }} {{ bodyClass }}{% if g.current_theme == 1 %} blur{% endif %}" data-text="{{_('Home')}}" data-textback="{{_('Back')}}">
     <!-- Static navbar -->
@@ -191,6 +198,9 @@
       </div>
     </div>
   </div>
+    {% if current_user.is_authenticated or g.allow_anonymous %}
+      {% include 'bottom_nav.html' %}
+    {% endif %}
     <div class="modal fade" id="bookDetailsModal" tabindex="-1" role="dialog" aria-labelledby="bookDetailsModalLabel">
       <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
@@ -223,6 +233,13 @@
       <script src="{{ url_for('static', filename='js/libs/readmore.min.js') }}"></script>
       <script src="{{ url_for('static', filename='js/caliBlur.js') }}"></script>
     {% endif %}
+    <script>
+      window.CWM_SW_URL = "{{ url_for('pwa.service_worker') }}";
+      {% if current_user.is_authenticated or g.allow_anonymous %}
+      window.CWM_SUGGEST_URL = "{{ url_for('search.search_suggest') }}";
+      {% endif %}
+    </script>
+    <script src="{{ url_for('static', filename='js/mobile.js') }}"></script>
     {% block js %}{% endblock %}
   </body>
 </html>

@@ -96,6 +96,8 @@ class _Settings(_Base):
     config_uploading = Column(SmallInteger, default=0)
     config_anonbrowse = Column(SmallInteger, default=0)
     config_public_reg = Column(SmallInteger, default=0)
+    # calibre-web-mobile: show which users downloaded a book on its detail page.
+    config_show_download_activity = Column(Boolean, default=True)
     config_remote_login = Column(Boolean, default=False)
     config_kobo_sync = Column(Boolean, default=False)
 
@@ -161,6 +163,8 @@ class _Settings(_Base):
     schedule_generate_series_covers = Column(Boolean, default=False)
     schedule_reconnect = Column(Boolean, default=False)
     schedule_metadata_backup = Column(Boolean, default=False)
+    # calibre-web-mobile: nightly rebuild of the FTS5 search index.
+    schedule_rebuild_fts = Column(Boolean, default=True)
 
     config_password_policy = Column(Boolean, default=True)
     config_password_min_length = Column(Integer, default=8)

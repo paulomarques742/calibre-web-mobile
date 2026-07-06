@@ -288,6 +288,84 @@
                 </div>
             {% endif %}
 
+            {% if community %}
+            <div id="community-block" class="cwm-community" data-book-id="{{ community.book_id }}"
+                 data-can-interact="{{ '1' if community.can_interact else '0' }}"
+                 data-url-rating="{{ url_for('community.set_rating', book_id=community.book_id) }}"
+                 data-url-review="{{ url_for('community.set_review', book_id=community.book_id) }}"
+                 data-url-like="{{ url_for('community.like_book', book_id=community.book_id) }}">
+                <input type="hidden" id="cwm-csrf" value="{{ csrf_token() }}">
+                <h3>{{ _('Community') }}</h3>
+
+                <div class="cwm-social-row">
+                    <div class="cwm-your-rating">
+                        <span class="cwm-label">{{ _('Your rating') }}:</span>
+                        <span class="cwm-stars" role="radiogroup" aria-label="{{_('Your rating')}}">
+                            {% for i in range(1, 6) %}
+                                <span class="cwm-star glyphicon {{ 'glyphicon-star' if community.your_rating >= i else 'glyphicon-star-empty' }}"
+                                      data-value="{{ i }}" role="radio" tabindex="0"
+                                      aria-checked="{{ 'true' if community.your_rating == i else 'false' }}"></span>
+                            {% endfor %}
+                        </span>
+                    </div>
+                    <div class="cwm-friends-rating">
+                        <span class="cwm-label">{{ _('Friends\' rating') }}:</span>
+                        <span class="cwm-avg">{% if community.rating_count %}&#9733; {{ community.rating_avg }} ({{ community.rating_count }}){% else %}&mdash;{% endif %}</span>
+                    </div>
+                    <button type="button" class="btn btn-sm cwm-like-btn {{ 'active' if community.you_liked }}"
+                            aria-pressed="{{ 'true' if community.you_liked else 'false' }}">
+                        <span class="glyphicon glyphicon-heart"></span>
+                        <span class="cwm-like-count">{{ community.like_count }}</span>
+                    </button>
+                </div>
+
+                {% if community.downloaders %}
+                <p class="cwm-downloaders text-muted">
+                    <span class="glyphicon glyphicon-download-alt"></span>
+                    {{ _('Downloaded by') }}:
+                    {% for name in community.downloaders[:5] %}{{ name }}{% if not loop.last %}, {% endif %}{% endfor %}
+                    {% if community.downloaders|length > 5 %}{{ _('and %(num)s more', num=community.downloaders|length - 5) }}{% endif %}
+                </p>
+                {% endif %}
+
+                {% if community.can_interact %}
+                <div class="cwm-review-form">
+                    <textarea id="cwm-review-text" class="form-control" rows="3"
+                              placeholder="{{ _('Write a review...') }}">{{ community.your_review }}</textarea>
+                    <button type="button" id="cwm-review-save" class="btn btn-primary btn-sm">{{ _('Save review') }}</button>
+                </div>
+                {% else %}
+                <p class="text-muted"><small>{{ _('Log in to rate, review, and like books.') }}</small></p>
+                {% endif %}
+
+                <div class="cwm-reviews">
+                    {% for rev in community.reviews %}
+                    <div class="cwm-review" data-review-id="{{ rev.id }}">
+                        <div class="cwm-review-head">
+                            <strong>{{ rev.user }}</strong>
+                            {% if rev.rating %}<span class="cwm-review-rating">&#9733; {{ rev.rating }}</span>{% endif %}
+                            <span class="cwm-review-date text-muted"><small>{{ rev.date|formatdate }}</small></span>
+                            {% if community.can_interact %}
+                            <button type="button" class="btn btn-xs cwm-review-like {{ 'active' if rev.you_liked }}"
+                                    data-url="{{ url_for('community.like_review', review_id=rev.id) }}"
+                                    aria-pressed="{{ 'true' if rev.you_liked else 'false' }}">
+                                <span class="glyphicon glyphicon-heart"></span> <span class="cwm-rl-count">{{ rev.likes }}</span>
+                            </button>
+                            {% endif %}
+                            {% if rev.is_you or current_user.role_admin() %}
+                            <button type="button" class="btn btn-xs cwm-review-delete"
+                                    data-url="{{ url_for('community.delete_review', review_id=rev.id) }}">
+                                <span class="glyphicon glyphicon-trash"></span>
+                            </button>
+                            {% endif %}
+                        </div>
+                        <div class="cwm-review-body">{{ rev.text|clean_string|safe }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
 
             <div class="more-stuff">
 
@@ -371,6 +449,7 @@
 </script>
 <script src="{{ url_for('static', filename='js/details.js') }}"></script>
 <script src="{{ url_for('static', filename='js/fullscreen.js') }}"></script>
+<script src="{{ url_for('static', filename='js/community.js') }}"></script>
 <script type="text/javascript">
 </script>
 

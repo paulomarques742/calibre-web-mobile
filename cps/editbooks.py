@@ -156,6 +156,13 @@ def upload():
                 WorkerThread.add(current_user.name, TaskUpload(upload_text, escape(title)))
                 helper.add_book_to_thumbnail_cache(book_id)
 
+                # calibre-web-mobile: index the newly uploaded book for search.
+                try:
+                    from . import fts
+                    fts.update_book(book_id)
+                except Exception as fts_ex:
+                    log.debug("FTS update after upload failed: %s", fts_ex)
+
                 if len(request.files.getlist("btn-upload")) < 2:
                     if current_user.role_edit() or current_user.role_admin():
                         resp = {"location": url_for('edit-book.show_edit_book', book_id=book_id)}
@@ -736,6 +743,13 @@ def do_edit_book(book_id, upload_formats=None):
         if edit_error is not True and title_author_error is not True and cover_upload_success is not False:
             flash(_("Metadata successfully updated"), category="success")
 
+        # calibre-web-mobile: keep the FTS index in sync with this edit.
+        try:
+            from . import fts
+            fts.update_book(book_id)
+        except Exception as fts_ex:
+            log.debug("FTS update after edit failed: %s", fts_ex)
+
         if upload_formats:
             resp = {"location": url_for('edit-book.show_edit_book', book_id=book_id)}
             return make_response(jsonify(resp))
@@ -995,7 +1009,13 @@ def delete_whole_book(book_id, book):
     ub.session.query(ub.BookShelf).filter(ub.BookShelf.book_id == book_id).delete()
     ub.session.query(ub.ReadBook).filter(ub.ReadBook.book_id == book_id).delete()
     ub.delete_download(book_id)
+    ub.delete_book_social(book_id)
     ub.session_commit()
+    try:
+        from . import fts
+        fts.delete_book(book_id)
+    except Exception as fts_ex:
+        log.debug("FTS delete failed: %s", fts_ex)
 
     # check if only this book links to:
     # author, language, series, tags, custom columns

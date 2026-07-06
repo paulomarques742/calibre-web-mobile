@@ -137,6 +137,12 @@
       <label for="kobo_only_shelves_sync">{{_('Sync only books in selected shelves with Kobo')}}</label>
     </div>
     {% endif %}
+    {% if not content.role_anonymous() %}
+    <div class="form-group">
+      <input type="checkbox" name="privacy_hide_activity" id="privacy_hide_activity" {% if content.privacy_hide_activity %}checked{% endif %}>
+      <label for="privacy_hide_activity">{{_('Hide my activity (do not show my downloads to other users)')}}</label>
+    </div>
+    {% endif %}
     </div>
     <div class="col-sm-12">
       <div id="user_submit" class="btn btn-default">{{_('Save')}}</div>
